@@ -28,7 +28,6 @@ export class SharePointService {
   private listId: string;
   private columnMap: Record<string, string> | null = null;
   private columnMapLoaded = false;
-  private columnMetadata: any[] = [];
   private columnDetails: Record<string, any> = {};
 
   constructor(accessToken: string, siteId: string, listId: string) {
@@ -48,7 +47,6 @@ export class SharePointService {
   resetColumnCache() {
     this.columnMap = null;
     this.columnMapLoaded = false;
-    this.columnMetadata = [];
     this.columnDetails = {};
     console.info("🔄 [resetColumnCache] Cache colonne resettata");
   }
@@ -465,10 +463,10 @@ export class SharePointService {
     try {
       const response = await this.graphClient
         .api(`/sites/${this.siteId}/drives/${driveId}/items/${itemId}/content`)
-        .responseType("blob")
+        .responseType("arraybuffer")
         .get();
 
-      return response;
+      return new Blob([response]);
     } catch (error: any) {
       console.error("❌ Error getting document content:", error);
       throw error;
@@ -676,8 +674,7 @@ export class SharePointService {
       // Costruisci lookup - usa ESATTAMENTE il nome così come restituito dall'API
       const columnLookup = new Map<string, string>();
       const columnLookupLower = new Map<string, string>();
-      
-      this.columnMetadata = columns.value || [];
+
       this.columnDetails = {};
       
       console.info("📋 [ensureColumnMap] Colonne disponibili nella lista SharePoint:");
