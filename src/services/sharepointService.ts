@@ -466,7 +466,7 @@ export class SharePointService {
         .responseType(ResponseType.ARRAYBUFFER)
         .get();
 
-      return new Blob([response]);
+      return new Blob([response], { type: "application/pdf" });
     } catch (error: any) {
       console.error("❌ Error getting document content:", error);
       throw error;
