@@ -1,0 +1,19 @@
+# Configurazione Microsoft Entra ID (Azure AD)
+VITE_CLIENT_ID=d1c69e02-4ade-4fef-8b53-a3216d9fc149
+VITE_TENANT_ID=165ced38-3dd8-449b-b2ad-568afb34a648
+VITE_REDIRECT_URI=http://localhost:5173
+
+# Configurazione SharePoint
+VITE_SHAREPOINT_SITE_ID=crm640156.sharepoint.com,f4eb9ccc-8a43-4456-90cc-688161843f4b,86eb7a7c-760d-4044-a821-d442e0d0788d
+VITE_SHAREPOINT_LIST_ID=af71a2a6-c5aa-4698-a0f0-3e425a1ee6fc
+VITE_ACCESSI_LIST_ID=b0cc9ac2-e450-43be-8a5a-46172566dd68
+VITE_SHAREPOINT_SITE_URL=https://crm640156.sharepoint.com/sites/TestTotem
+
+# --- Configurazione Power Automate ---  
+VITE_PA_SEND_QR_URL=https://default165ced383dd8449bb2ad568afb34a6.48.environment.api.powerplatform.com:443/powerautomate/automations/direct/workflows/a8f0d04259ad44d088ae0930fcde376f/triggers/manual/paths/invoke?api-version=1&sp=%2Ftriggers%2Fmanual%2Frun&sv=1.0&sig=3n12i95By9UUCvzzrRHDIG9k2hJbQ-AJj0E2JuTMkGA
+
+# Finestra di lookback per accessi (in ore)
+VITE_ACCESSI_LOOKBACK_HOURS=48
+
+# Configurazione lista impostazioni
+VITE_SETTINGS_LIST_ID=03868330-cff2-42b1-a331-8a1f03f1ead8

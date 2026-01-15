@@ -1,0 +1,296 @@
+.sharepoint-test {
+  background: white;
+  border-radius: 8px;
+  padding: 1.5rem;
+  box-shadow: 0 2px 4px rgba(0, 0, 0, 0.1);
+}
+
+.sharepoint-test h3 {
+  color: #111827;
+  margin-top: 0;
+  margin-bottom: 1rem;
+  font-size: 1.5rem;
+  display: flex;
+  align-items: center;
+  gap: 0.5rem;
+}
+
+.sharepoint-test h4 {
+  color: #374151;
+  margin-top: 0;
+  margin-bottom: 1rem;
+  font-size: 1.125rem;
+}
+
+.sharepoint-info {
+  background: #f0f9ff;
+  border-left: 4px solid #0078d4;
+  padding: 1rem;
+  margin-bottom: 2rem;
+  border-radius: 4px;
+}
+
+.sharepoint-info p {
+  margin: 0.5rem 0;
+  font-size: 0.9rem;
+}
+
+.sharepoint-info a {
+  color: #0078d4;
+  text-decoration: none;
+}
+
+.sharepoint-info a:hover {
+  text-decoration: underline;
+}
+
+.error-banner {
+  background: #fee;
+  border-left: 4px solid #dc2626;
+  padding: 1rem;
+  margin-bottom: 1rem;
+  border-radius: 4px;
+  color: #7f1d1d;
+}
+
+.test-section {
+  margin-bottom: 2rem;
+  padding: 1.5rem;
+  background: #f9fafb;
+  border-radius: 8px;
+  border: 1px solid #e5e7eb;
+}
+
+/* Form styles */
+.create-form {
+  display: flex;
+  flex-direction: column;
+  gap: 1rem;
+}
+
+.form-row {
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(250px, 1fr));
+  gap: 1rem;
+}
+
+.form-group {
+  display: flex;
+  flex-direction: column;
+  gap: 0.25rem;
+}
+
+.form-group label {
+  font-weight: 600;
+  font-size: 0.875rem;
+  color: #374151;
+}
+
+.form-group input,
+.form-group select {
+  padding: 0.625rem;
+  border: 1px solid #d1d5db;
+  border-radius: 6px;
+  font-size: 0.9rem;
+  transition: border-color 0.2s;
+}
+
+.form-group input:focus,
+.form-group select:focus {
+  outline: none;
+  border-color: #0078d4;
+  box-shadow: 0 0 0 3px rgba(0, 120, 212, 0.1);
+}
+
+.form-group small {
+  font-size: 0.75rem;
+  color: #6b7280;
+  font-style: italic;
+}
+
+/* Buttons */
+.btn {
+  padding: 0.75rem 1.5rem;
+  border: none;
+  border-radius: 6px;
+  font-size: 0.95rem;
+  font-weight: 600;
+  cursor: pointer;
+  transition: all 0.2s;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  gap: 0.5rem;
+}
+
+.btn:disabled {
+  opacity: 0.6;
+  cursor: not-allowed;
+}
+
+.btn-primary {
+  background: #0078d4;
+  color: white;
+}
+
+.btn-primary:hover:not(:disabled) {
+  background: #106ebe;
+  transform: translateY(-1px);
+  box-shadow: 0 4px 8px rgba(0, 120, 212, 0.3);
+}
+
+.btn-secondary {
+  background: #6b7280;
+  color: white;
+}
+
+.btn-secondary:hover:not(:disabled) {
+  background: #4b5563;
+}
+
+.btn-info {
+  background: #8b5cf6;
+  color: white;
+}
+
+.btn-info:hover:not(:disabled) {
+  background: #7c3aed;
+}
+
+.btn-danger {
+  background: #dc2626;
+  color: white;
+}
+
+.btn-danger:hover:not(:disabled) {
+  background: #b91c1c;
+}
+
+.btn-sm {
+  padding: 0.375rem 0.75rem;
+  font-size: 0.875rem;
+}
+
+.action-buttons {
+  display: flex;
+  gap: 0.75rem;
+  flex-wrap: wrap;
+  margin-bottom: 1rem;
+}
+
+/* Table styles */
+.visitatori-list {
+  margin-top: 1.5rem;
+}
+
+.list-info {
+  margin-bottom: 1rem;
+  color: #374151;
+  font-weight: 500;
+}
+
+.table-container {
+  overflow-x: auto;
+  border-radius: 8px;
+  border: 1px solid #e5e7eb;
+}
+
+table {
+  width: 100%;
+  border-collapse: collapse;
+  background: white;
+  font-size: 0.875rem;
+}
+
+thead {
+  background: #f3f4f6;
+}
+
+th {
+  padding: 0.875rem 0.75rem;
+  text-align: left;
+  font-weight: 600;
+  color: #111827;
+  border-bottom: 2px solid #e5e7eb;
+}
+
+td {
+  padding: 0.75rem;
+  border-bottom: 1px solid #e5e7eb;
+  color: #374151;
+}
+
+tbody tr:hover {
+  background: #f9fafb;
+}
+
+tbody tr:last-child td {
+  border-bottom: none;
+}
+
+td code {
+  background: #f3f4f6;
+  padding: 0.25rem 0.5rem;
+  border-radius: 4px;
+  font-size: 0.8rem;
+  font-family: "Courier New", monospace;
+}
+
+.status-badge {
+  display: inline-block;
+  padding: 0.25rem 0.75rem;
+  border-radius: 999px;
+  font-size: 0.75rem;
+  font-weight: 600;
+  text-transform: uppercase;
+  letter-spacing: 0.5px;
+}
+
+.status-badge.active {
+  background: #d1fae5;
+  color: #065f46;
+}
+
+.status-badge.inactive {
+  background: #fee2e2;
+  color: #991b1b;
+}
+
+.empty-state {
+  text-align: center;
+  padding: 3rem 1rem;
+  color: #6b7280;
+}
+
+.empty-state p {
+  margin: 0.5rem 0;
+}
+
+.empty-state .small {
+  font-size: 0.875rem;
+  color: #9ca3af;
+}
+
+/* Responsive */
+@media (max-width: 768px) {
+  .form-row {
+    grid-template-columns: 1fr;
+  }
+
+  .action-buttons {
+    flex-direction: column;
+  }
+
+  .action-buttons .btn {
+    width: 100%;
+  }
+
+  .table-container {
+    font-size: 0.8rem;
+  }
+
+  th,
+  td {
+    padding: 0.5rem;
+  }
+}
