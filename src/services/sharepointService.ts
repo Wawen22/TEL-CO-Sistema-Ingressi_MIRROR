@@ -9,6 +9,7 @@ export interface Visitatore {
   Nome?: string;
   Cognome?: string;
   Email?: string;
+  Telefono?: string;
   Azienda?: string;
   Stato?: string; // "Attivo" | "Non Attivo"
   Categoria?: string;
@@ -523,6 +524,7 @@ export class SharePointService {
     Nome: "Nome",
     Cognome: "Cognome",
     Email: "Email",
+    Telefono: "Telefono",
     Azienda: "Azienda",
     Stato: "Stato",
     Categoria: "Categoria",
@@ -588,6 +590,16 @@ export class SharePointService {
         return;
       }
 
+      // Gestione colonne Number (SharePoint)
+      if (colInfo?.number !== undefined) {
+        const raw = typeof value === "string" ? value.trim() : value;
+        if (raw === "" || raw === undefined || raw === null) return;
+        const num = Number(raw);
+        if (Number.isNaN(num)) return;
+        mapped[targetKey] = num;
+        return;
+      }
+
       // Ignora valori undefined, null o stringhe vuote
       if (value === undefined || value === null) return;
       if (typeof value === "string") {
@@ -603,6 +615,7 @@ export class SharePointService {
     setValue("Nome", visitatore.Nome);
     setValue("Cognome", visitatore.Cognome);
     setValue("Email", visitatore.Email);
+    setValue("Telefono", visitatore.Telefono);
     setValue("Azienda", visitatore.Azienda);
     setValue("Stato", visitatore.Stato);
     setValue("Categoria", visitatore.Categoria);
@@ -715,8 +728,18 @@ export class SharePointService {
 
       // Lista dei campi che vogliamo mappare
       const desiredFields = [
-        "Nome", "Cognome", "Email", "Azienda", "Stato", "Categoria",
-        "VideoTutorialVisto", "EnteRiferimento", "Progetto", "Commessa", "Attivita"
+        "Nome",
+        "Cognome",
+        "Email",
+        "Telefono",
+        "Azienda",
+        "Stato",
+        "Categoria",
+        "VideoTutorialVisto",
+        "EnteRiferimento",
+        "Progetto",
+        "Commessa",
+        "Attivita",
       ];
 
       const map: Record<string, string> = {};

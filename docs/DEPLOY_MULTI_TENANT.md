@@ -5,7 +5,7 @@ Replica l'app kiosk su un nuovo tenant Microsoft 365 (nuovo cliente) seguendo qu
 ### Cosa viene rilasciato
 - SPA React/Vite con MSAL e scanner QR.
 - Liste SharePoint: `Visitatori` (anagrafica), `Accessi` (storico) e `Impostazioni` (configurazione).
-- Flow Power Automate per invio QR e OTP (`action: send|resend|otp`).
+- Flow Power Automate per invio QR e OTP (`action: send|resend|otp|otpsms`).
 - App Registration Entra ID con app role `Totem.Admin` per l'area riservata.
 
 ---
@@ -152,6 +152,7 @@ Procedura rapida:
        "nome": { "type": "string" },
        "cognome": { "type": "string" },
        "email": { "type": "string" },
+       "telefono": { "type": "string" },
        "azienda": { "type": "string" },
        "puntoAccesso": { "type": "string" },
        "categoria": { "type": "string" },
@@ -166,19 +167,21 @@ Procedura rapida:
     - **Case `send`**: Aggiungi azione "Send an email (V2)". Corpo: Benvenuto, ecco il tuo QR Code (usa contenuto dinamico qrCode).
     - **Case `resend`**: Aggiungi azione "Send an email (V2)". Corpo: Ecco di nuovo il tuo QR Code.
     - **Case `otp`**: Aggiungi azione "Send an email (V2)". Oggetto: "Il tuo codice di accesso". Corpo: "Il tuo codice è: @{triggerBody()?['otpCode']}".
+    - **Case `otpsms`**: Aggiungi un'azione SMS (es. "Send SMS" con connettore Twilio/Teams/CPaaS). Numero: `@{triggerBody()?['telefono']}`. Corpo: "Il tuo codice è: @{triggerBody()?['otpCode']}".
 5.  Salva il flow.
 6.  Riapri il trigger "When an HTTP request is received" e copia il campo **HTTP POST URL**. Questo è il tuo `VITE_PA_SEND_QR_URL`.
 
 Payload usato dal frontend:
 ```json
 {
-  "action": "send" | "resend" | "otp",
+  "action": "send" | "resend" | "otp" | "otpsms",
   "idVisitatore": "VIS-...",
   "qrCode": "VIS-...",
   "otpCode": "123456",
   "nome": "...",
   "cognome": "...",
   "email": "...",
+  "telefono": "+39 333 123 4567",
   "azienda": "...",
   "puntoAccesso": "Kiosk Principale",
   "categoria": "VISITATORE",

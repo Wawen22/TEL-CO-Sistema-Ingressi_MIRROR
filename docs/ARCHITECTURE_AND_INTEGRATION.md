@@ -92,6 +92,7 @@ Per operazioni che richiedono l'invio di email o logiche di business asincrone (
     *   `send`: Invia QR Code di benvenuto.
     *   `resend`: Reinvia QR Code esistente.
     *   `otp`: Invia codice OTP numerico per accesso senza QR.
+    *   `otpsms`: Invia codice OTP numerico via SMS per accesso senza QR.
 4.  **Esecuzione Flow:** Power Automate riceve il JSON, valuta l'azione tramite uno Switch e invia l'email appropriata.
 
 ### Sicurezza

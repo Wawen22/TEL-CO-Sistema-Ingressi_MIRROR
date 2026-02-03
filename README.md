@@ -267,13 +267,15 @@ Il sistema utilizza un flow Power Automate con trigger HTTP per gestire le comun
 
 {
 
-"action": "send | resend | otp",
+"action": "send | resend | otp | otpsms",
 
 "idVisitatore": "VIS-...",
 
 "qrCode": "VIS-...",
 
 "email": "user@example.com",
+
+"telefono": "+39 333 123 4567",
 
 "nome": "Mario",
 

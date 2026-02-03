@@ -26,6 +26,7 @@ type VisitatoreItem = {
   cognome?: string;
   azienda?: string;
   email?: string;
+  telefono?: string;
   categoria?: string;
   enteRiferimento?: string;
   progetto?: string;
@@ -39,6 +40,13 @@ type VisitatoreItem = {
 const normalizeVisitatori = (data: any[]): VisitatoreItem[] =>
   (data || []).map((item: any) => {
     const email = item?.fields?.Email || item?.fields?.email; // tolerate casing variants
+    const rawTelefono =
+      item?.fields?.Telefono ||
+      item?.fields?.Cellulare ||
+      item?.fields?.Mobile ||
+      item?.fields?.MobilePhone ||
+      item?.fields?.TelefonoCellulare;
+    const telefono = rawTelefono !== undefined && rawTelefono !== null ? String(rawTelefono).trim() : undefined;
     return {
       itemId: item?.id,
       idVisitatore: item?.fields?.Title || "",
@@ -46,6 +54,7 @@ const normalizeVisitatori = (data: any[]): VisitatoreItem[] =>
       cognome: item?.fields?.Cognome,
       azienda: item?.fields?.Azienda,
       email,
+      telefono,
       categoria: item?.fields?.Categoria,
       enteRiferimento: item?.fields?.EnteRiferimento,
       progetto: item?.fields?.Progetto,
@@ -79,6 +88,7 @@ export const KioskMain: React.FC<KioskMainProps> = ({ onAdminAccess, canAccessAd
   const [obEmail, setObEmail] = useState("");
   const [obAzienda, setObAzienda] = useState("");
   const [obCategoria, setObCategoria] = useState("Visitatore");
+  const [obTelefono, setObTelefono] = useState("");
   const [obEnteRiferimento, setObEnteRiferimento] = useState("");
   const [obProgetto, setObProgetto] = useState("");
   const [obCommessa, setObCommessa] = useState("");
@@ -93,12 +103,15 @@ export const KioskMain: React.FC<KioskMainProps> = ({ onAdminAccess, canAccessAd
   // Email Auth State
   const [showEmailAuth, setShowEmailAuth] = useState(false);
   const [emailAuthStep, setEmailAuthStep] = useState<"email" | "otp">("email");
+  const [otpChannel, setOtpChannel] = useState<"email" | "sms">("email");
   const [emailAuthInput, setEmailAuthInput] = useState("");
+  const [phoneAuthInput, setPhoneAuthInput] = useState("");
   const [otpInput, setOtpInput] = useState("");
   const [generatedOtp, setGeneratedOtp] = useState("");
   const [emailAuthAction, setEmailAuthAction] = useState<ActionType | null>(null);
   const [emailAuthError, setEmailAuthError] = useState("");
   const [emailAuthLoading, setEmailAuthLoading] = useState(false);
+  const [emailAuthVisitatore, setEmailAuthVisitatore] = useState<VisitatoreItem | null>(null);
 
   const [visitatoriAccessDenied, setVisitatoriAccessDenied] = useState(false);
   const [now, setNow] = useState<Date>(new Date());
@@ -127,6 +140,19 @@ export const KioskMain: React.FC<KioskMainProps> = ({ onAdminAccess, canAccessAd
       i18n.changeLanguage(lng).catch((err) => console.error("Change language error", err));
     },
     [i18n]
+  );
+
+  const normalizePhone = useCallback((value?: string) => (value ? value.replace(/\D/g, "") : ""), []);
+
+  const phoneMatches = useCallback(
+    (value?: string, candidate?: string) => {
+      const a = normalizePhone(value);
+      const b = normalizePhone(candidate);
+      if (!a || !b) return false;
+      if (a === b) return true;
+      return a.length > b.length ? a.endsWith(b) : b.endsWith(a);
+    },
+    [normalizePhone]
   );
 
   const showStatus = useCallback(
@@ -639,18 +665,17 @@ export const KioskMain: React.FC<KioskMainProps> = ({ onAdminAccess, canAccessAd
     setEmailAuthAction(action);
     setShowEmailAuth(true);
     setEmailAuthStep("email");
+    setOtpChannel("email");
     setEmailAuthInput("");
+    setPhoneAuthInput("");
     setOtpInput("");
     setEmailAuthError("");
     setGeneratedOtp("");
+    setEmailAuthVisitatore(null);
     setLoading(action);
   };
 
   const handleSendCode = async () => {
-    if (!emailAuthInput.trim()) {
-      setEmailAuthError("Inserisci un'email valida");
-      return;
-    }
     setEmailAuthLoading(true);
     setEmailAuthError("");
     try {
@@ -666,25 +691,50 @@ export const KioskMain: React.FC<KioskMainProps> = ({ onAdminAccess, canAccessAd
       const normalizedVisitatori = normalizeVisitatori(freshVisitatori);
       setVisitatori(normalizedVisitatori.filter((v) => v.idVisitatore));
 
-      const lookupEmail = emailAuthInput.trim().toLowerCase();
-      const visitatore = normalizedVisitatori.find((v) => (v.email || "").toLowerCase() === lookupEmail);
+      let visitatore: VisitatoreItem | undefined;
+      if (otpChannel === "sms") {
+        const phoneInput = normalizePhone(phoneAuthInput);
+        if (!phoneInput) {
+          setEmailAuthError(t("emailAuth.phoneRequired"));
+          return;
+        }
+        if (phoneInput.length > 10) {
+          setEmailAuthError(t("emailAuth.phoneTooLong"));
+          return;
+        }
+        visitatore = normalizedVisitatori.find((v) => phoneMatches(v.telefono, phoneInput));
+      } else {
+        const lookupEmail = emailAuthInput.trim().toLowerCase();
+        if (!lookupEmail) {
+          setEmailAuthError(t("emailAuth.emailRequired"));
+          return;
+        }
+        visitatore = normalizedVisitatori.find((v) => (v.email || "").toLowerCase() === lookupEmail);
+      }
 
       if (!visitatore) {
-        setEmailAuthError("Email non trovata tra i visitatori registrati.");
+        setEmailAuthError(otpChannel === "sms" ? t("emailAuth.userNotFoundSms") : t("emailAuth.userNotFoundEmail"));
+        return;
+      }
+
+      if (otpChannel === "sms" && !visitatore.telefono) {
+        setEmailAuthError(t("emailAuth.phoneMissing"));
         return;
       }
 
       // Generate OTP
       const code = Math.floor(100000 + Math.random() * 900000).toString();
       setGeneratedOtp(code);
+      setEmailAuthVisitatore(visitatore);
       
       // Call Power Automate to send OTP email
       await callPowerAutomate({
-        action: "otp",
+        action: otpChannel === "sms" ? "otpsms" : "otp",
         idVisitatore: visitatore.idVisitatore,
         nome: visitatore.nome,
         cognome: visitatore.cognome,
         email: visitatore.email,
+        telefono: visitatore.telefono || normalizePhone(phoneAuthInput),
         otpCode: code,
         language: currentLang,
         source: "totem",
@@ -708,8 +758,11 @@ export const KioskMain: React.FC<KioskMainProps> = ({ onAdminAccess, canAccessAd
     setEmailAuthLoading(true);
     try {
       // Find visitor again
-      const lookupEmail = emailAuthInput.trim().toLowerCase();
-      const visitatore = visitatori.find((v) => (v.email || "").toLowerCase() === lookupEmail);
+      const visitatore =
+        emailAuthVisitatore ||
+        (otpChannel === "sms"
+          ? visitatori.find((v) => phoneMatches(v.telefono, phoneAuthInput))
+          : visitatori.find((v) => (v.email || "").toLowerCase() === emailAuthInput.trim().toLowerCase()));
       
       if (!visitatore) {
         throw new Error(t("scanner.invalidQr"));
@@ -791,6 +844,7 @@ export const KioskMain: React.FC<KioskMainProps> = ({ onAdminAccess, canAccessAd
     setObEmail("");
     setObAzienda("");
     setObCategoria("VISITATORE");
+    setObTelefono("");
     setObEnteRiferimento("");
     setObProgetto("");
     setObCommessa("");
@@ -860,15 +914,18 @@ export const KioskMain: React.FC<KioskMainProps> = ({ onAdminAccess, canAccessAd
         const nuovoId = `VIS-${Date.now()}`;
         
         // Prepara i dati del visitatore - NON inviare stringhe vuote per campi opzionali
-        const visitatoreData: any = {
-          Title: nuovoId,
-          Nome: obNome.trim(),
-          Cognome: obCognome.trim(),
-          Email: obEmail.trim(),
-          Azienda: obAzienda.trim(),
-          Stato: "Attivo",
-          Categoria: obCategoria || "Visitatore",
-        };
+      const visitatoreData: any = {
+        Title: nuovoId,
+        Nome: obNome.trim(),
+        Cognome: obCognome.trim(),
+        Email: obEmail.trim(),
+        Azienda: obAzienda.trim(),
+        Stato: "Attivo",
+        Categoria: obCategoria || "Visitatore",
+      };
+      if (obTelefono.trim()) {
+        visitatoreData.Telefono = obTelefono.trim();
+      }
 
         // Aggiungi campi ispettore solo se valorizzati
         if (obCategoria === "Ispettore") {
@@ -1009,6 +1066,14 @@ export const KioskMain: React.FC<KioskMainProps> = ({ onAdminAccess, canAccessAd
   const homeGraphicAlt = isEmailAuth ? "Icona OTP" : "Icona animata scansione QR";
   const destinationOptions = t("destination.options", { returnObjects: true }) as string[];
   const tutorialVideoSrc = "/video/tutorial/Istruzioni_di_sicurezza_visitatori.mp4";
+  const emailAuthStepTitle =
+    otpChannel === "sms" ? t("emailAuth.emailStepTitleSms") : t("emailAuth.emailStepTitleEmail");
+  const otpStepTitle = otpChannel === "sms" ? t("emailAuth.otpStepTitleSms") : t("emailAuth.otpStepTitleEmail");
+  const sendCodeLabel = otpChannel === "sms" ? t("emailAuth.sendCodeSms") : t("emailAuth.sendCodeEmail");
+  const otpHint = otpChannel === "sms" ? t("emailAuth.otpHintSms") : t("emailAuth.otpHintEmail");
+  const switchChannelLabel =
+    otpChannel === "sms" ? t("emailAuth.switchToEmail") : t("emailAuth.switchToSms");
+  const switchChannelValue: "email" | "sms" = otpChannel === "sms" ? "email" : "sms";
   // const selectedPrivacyUrl = ... (Removed, using state)
 
   return (
@@ -1462,7 +1527,7 @@ export const KioskMain: React.FC<KioskMainProps> = ({ onAdminAccess, canAccessAd
                 {emailAuthAction === "uscita" ? t("emailAuth.uscita") : t("emailAuth.ingresso")}
               </div>
               <div style={styles.heroSubtitle}>
-                {emailAuthStep === "email" ? t("emailAuth.emailStepTitle") : t("emailAuth.otpStepTitle")}
+                {emailAuthStep === "email" ? emailAuthStepTitle : otpStepTitle}
               </div>
             </div>
 
@@ -1470,13 +1535,30 @@ export const KioskMain: React.FC<KioskMainProps> = ({ onAdminAccess, canAccessAd
                 {emailAuthStep === "email" ? (
                   <div style={styles.formGrid}>
                     <div style={styles.formField}>
-                    <label style={styles.formLabel}>{t("onboarding.email")}</label>
-                    <input
-                      style={styles.formInput}
-                      value={emailAuthInput}
-                      onChange={(e) => setEmailAuthInput(e.target.value)}
-                      placeholder="nome@azienda.com"
-                    />
+                    <label style={styles.formLabel}>
+                      {otpChannel === "sms" ? t("emailAuth.phoneLabel") : t("onboarding.email")}
+                    </label>
+                    {otpChannel === "sms" ? (
+                      <input
+                        style={styles.formInput}
+                        value={phoneAuthInput}
+                        onChange={(e) => {
+                          const next = e.target.value.replace(/\D/g, "").slice(0, 10);
+                          setPhoneAuthInput(next);
+                        }}
+                        placeholder={t("emailAuth.phonePlaceholder")}
+                        inputMode="numeric"
+                        maxLength={10}
+                      />
+                    ) : (
+                      <input
+                        style={styles.formInput}
+                        value={emailAuthInput}
+                        onChange={(e) => setEmailAuthInput(e.target.value)}
+                        placeholder="nome@azienda.com"
+                      />
+                    )}
+                    <div style={styles.formHint}>{otpChannel === "sms" ? t("emailAuth.smsHint") : t("emailAuth.emailHint")}</div>
                     {emailAuthError && <div style={styles.errorText}>{emailAuthError}</div>}
                     <div style={{ display: "flex", justifyContent: "flex-end", marginTop: "1rem" }}>
                       <button
@@ -1484,7 +1566,18 @@ export const KioskMain: React.FC<KioskMainProps> = ({ onAdminAccess, canAccessAd
                         onClick={handleSendCode}
                         disabled={emailAuthLoading}
                       >
-                        {emailAuthLoading ? t("onboarding.loadingGeneric") : t("emailAuth.sendCode")}
+                        {emailAuthLoading ? t("onboarding.loadingGeneric") : sendCodeLabel}
+                      </button>
+                    </div>
+                    <div style={{ display: "flex", justifyContent: "center", marginTop: "0.85rem" }}>
+                      <button
+                        style={{ ...styles.secondaryButton, border: "none", background: "transparent", color: "#555" }}
+                        onClick={() => {
+                          setOtpChannel(switchChannelValue);
+                          setEmailAuthError("");
+                        }}
+                      >
+                        {switchChannelLabel}
                       </button>
                     </div>
                   </div>
@@ -1492,7 +1585,7 @@ export const KioskMain: React.FC<KioskMainProps> = ({ onAdminAccess, canAccessAd
               ) : (
                 <div style={styles.formGrid}>
                   <div style={styles.formField}>
-                    <label style={styles.formLabel}>{t("emailAuth.otpStepTitle")}</label>
+                    <label style={styles.formLabel}>{otpStepTitle}</label>
                     <input
                       style={{
                         ...styles.formInput,
@@ -1505,6 +1598,7 @@ export const KioskMain: React.FC<KioskMainProps> = ({ onAdminAccess, canAccessAd
                       placeholder={t("emailAuth.otpPlaceholder")}
                       maxLength={6}
                     />
+                    <div style={styles.formHint}>{otpHint}</div>
                     {emailAuthError && <div style={styles.errorText}>{emailAuthError}</div>}
                     <div style={{ display: "flex", flexDirection: "column", gap: "0.5rem", marginTop: "1rem" }}>
                       <button
@@ -1627,6 +1721,20 @@ export const KioskMain: React.FC<KioskMainProps> = ({ onAdminAccess, canAccessAd
                       style={{ ...styles.formInput, ...styles.requiredInput }}
                       value={obEmail}
                       onChange={(e) => setObEmail(e.target.value)}
+                    />
+                  </div>
+                  <div style={styles.formField}>
+                    <label style={styles.formLabel}>{t("onboarding.telefono")}</label>
+                    <input
+                      style={styles.formInput}
+                      value={obTelefono}
+                      onChange={(e) => {
+                        const next = e.target.value.replace(/\D/g, "").slice(0, 10);
+                        setObTelefono(next);
+                      }}
+                      placeholder={t("onboarding.telefonoPlaceholder")}
+                      inputMode="numeric"
+                      maxLength={10}
                     />
                   </div>
                   <div style={styles.formField}>
@@ -3125,6 +3233,12 @@ export const KioskMain: React.FC<KioskMainProps> = ({ onAdminAccess, canAccessAd
     fontSize: "0.9rem",
     color: "#5b748a",
     opacity: 0.9,
+    fontFamily: "'Space Grotesk', 'Inter', system-ui, sans-serif",
+  },
+  formHint: {
+    fontSize: "0.88rem",
+    color: "#4a6074",
+    opacity: 0.95,
     fontFamily: "'Space Grotesk', 'Inter', system-ui, sans-serif",
   },
   errorText: {
