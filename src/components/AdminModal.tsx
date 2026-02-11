@@ -302,7 +302,7 @@ export const AdminModal = ({ onClose, authMode, setAuthMode }: AdminModalProps) 
                           checked={authMode === "EMAIL"} 
                           onChange={() => setAuthMode("EMAIL")} 
                         />
-                        <span>Email + Codice OTP</span>
+                        <span>Email/SMS + Codice OTP</span>
                       </label>
                     </div>
                     <p style={{ marginTop: "10px", opacity: 0.7, fontSize: "0.9em" }}>

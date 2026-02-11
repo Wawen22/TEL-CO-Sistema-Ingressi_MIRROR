@@ -47,7 +47,7 @@ export class AccessiService {
           field_6: accesso.PuntoAccesso || "Kiosk Principale",
           field_7: accesso.Note || "",
           field_8: accesso.Categoria || "VISITATORE",
-          field_10: accesso.PercorsoDestinazione || "",
+          field_9: accesso.PercorsoDestinazione || "",
         },
       };
 
@@ -69,7 +69,7 @@ export class AccessiService {
     try {
       await this.graphClient
         .api(`/sites/${this.siteId}/lists/${this.accessiListId}/items/${accessoId}/fields`)
-        .update({ field_10: destinazione });
+        .update({ field_9: destinazione });
     } catch (error) {
       console.error("❌ Errore aggiornamento PercorsoDestinazione:", error);
       throw error;
@@ -99,7 +99,7 @@ export class AccessiService {
 
       let apiCall = this.graphClient
         .api(`/sites/${this.siteId}/lists/${this.accessiListId}/items`)
-        .expand("fields($select=Title,field_1,field_2,field_3,field_4,field_5,field_6,field_7,field_8,field_10)")
+        .expand("fields($select=Title,field_1,field_2,field_3,field_4,field_5,field_6,field_7,field_8,field_9)")
         .top(top)
         .orderby(orderBy)
         .header("Prefer", "HonorNonIndexedQueriesWarningMayFailRandomly");
@@ -134,7 +134,7 @@ export class AccessiService {
       const filter = `fields/field_1 eq '${AccessiService.escapeODataString(visitatoreId)}'`;
       const response = await this.graphClient
         .api(`/sites/${this.siteId}/lists/${this.accessiListId}/items`)
-        .expand("fields($select=Title,field_1,field_2,field_3,field_4,field_5,field_6,field_7,field_8,field_10)")
+        .expand("fields($select=Title,field_1,field_2,field_3,field_4,field_5,field_6,field_7,field_8,field_9)")
         .filter(filter)
         .orderby("fields/field_4 desc")
         .top(1)
@@ -165,7 +165,7 @@ export class AccessiService {
       PuntoAccesso: f.field_6 ?? f.PuntoAccesso,
       Note: f.field_7 ?? f.Note,
       Categoria: f.field_8 ?? f.Categoria,
-      PercorsoDestinazione: f.field_10 ?? f.PercorsoDestinazione,
+      PercorsoDestinazione: f.field_9 ?? f.PercorsoDestinazione,
     };
 
     return {
@@ -194,7 +194,7 @@ export class AccessiService {
       // 2. Ottieni tutti i visitatori per avere i dettagli
       const visitatoriResponse = await this.graphClient
         .api(`/sites/${this.siteId}/lists/${this.visitatoriListId}/items`)
-        .expand("fields($select=id,Title,field_1,field_2,field_4)")
+        .expand("fields($select=id,Title,field_1,field_2,field_5)")
         .get();
 
       const visitatori = (visitatoriResponse.value || []).map((v: any) => {
@@ -205,7 +205,7 @@ export class AccessiService {
             ...f,
             Nome: f.field_1 ?? f.Nome,
             Cognome: f.field_2 ?? f.Cognome,
-            Azienda: f.field_4 ?? f.Azienda,
+            Azienda: f.field_5 ?? f.Azienda,
           },
         };
       });
