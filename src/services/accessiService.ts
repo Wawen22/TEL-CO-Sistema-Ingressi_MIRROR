@@ -80,11 +80,14 @@ export class AccessiService {
   /**
    * Aggiorna il referente appuntamento su un accesso esistente
    */
-  async updateReferente(accessoId: string, referente: string) {
+  async updateReferente(accessoId: string, referenteDisplayName: string, referenteEmail: string) {
     try {
       await this.graphClient
         .api(`/sites/${this.siteId}/lists/${this.accessiListId}/items/${accessoId}/fields`)
-        .update({ ReferenteAppuntamento: referente });
+        .update({ 
+          ReferenteAppuntamento: referenteEmail, // SharePoint risolve l'utente tramite email
+          field_9: referenteDisplayName // Nome leggibile per la colonna destinazione
+        });
     } catch (error) {
       console.error("❌ Errore aggiornamento ReferenteAppuntamento:", error);
       throw error;

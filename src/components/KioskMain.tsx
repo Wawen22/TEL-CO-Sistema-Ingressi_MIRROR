@@ -528,8 +528,9 @@ export const KioskMain: React.FC<KioskMainProps> = ({ onAdminAccess, canAccessAd
           import.meta.env.VITE_SHAREPOINT_LIST_ID
         );
 
-        const referenteStr = `${referente.displayName} (${referente.mail || referente.userPrincipalName})`;
-        await accessiService.updateReferente(pendingDestination.accessoId, referenteStr);
+        const referenteEmail = referente.mail || referente.userPrincipalName;
+        const referenteDisplayName = referente.displayName;
+        await accessiService.updateReferente(pendingDestination.accessoId, referenteDisplayName, referenteEmail);
 
         const fullName = `${pendingDestination.visitatore?.nome || ""} ${pendingDestination.visitatore?.cognome || ""}`.trim();
         const message = `Referente impostato${fullName ? ` per ${fullName}` : ""}: ${referente.displayName}. Ricorda di effettuare il check-out in uscita!`;
