@@ -54,4 +54,26 @@ export class GraphService {
       throw error;
     }
   }
+
+  /**
+   * Cerca utenti nel tenant
+   */
+  async searchUsers(query: string) {
+    try {
+      if (!query || query.length < 2) return [];
+      
+      const response = await this.graphClient
+        .api("/users")
+        .header("ConsistencyLevel", "eventual")
+        .search(`"displayName:${query}" OR "mail:${query}"`)
+        .select("id,displayName,mail,jobTitle,userPrincipalName")
+        .top(10)
+        .get();
+      
+      return response.value || [];
+    } catch (error) {
+      console.error("Error searching users:", error);
+      return [];
+    }
+  }
 }

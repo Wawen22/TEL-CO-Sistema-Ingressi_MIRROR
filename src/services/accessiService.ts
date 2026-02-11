@@ -48,6 +48,7 @@ export class AccessiService {
           field_7: accesso.Note || "",
           field_8: accesso.Categoria || "VISITATORE",
           field_9: accesso.PercorsoDestinazione || "",
+          ReferenteAppuntamento: accesso.ReferenteAppuntamento || "",
         },
       };
 
@@ -77,6 +78,20 @@ export class AccessiService {
   }
 
   /**
+   * Aggiorna il referente appuntamento su un accesso esistente
+   */
+  async updateReferente(accessoId: string, referente: string) {
+    try {
+      await this.graphClient
+        .api(`/sites/${this.siteId}/lists/${this.accessiListId}/items/${accessoId}/fields`)
+        .update({ ReferenteAppuntamento: referente });
+    } catch (error) {
+      console.error("❌ Errore aggiornamento ReferenteAppuntamento:", error);
+      throw error;
+    }
+  }
+
+  /**
    * Ottiene tutti gli accessi di un visitatore specifico
    */
   async getAccessiByVisitatore(visitatoreId: string) {
@@ -99,7 +114,7 @@ export class AccessiService {
 
       let apiCall = this.graphClient
         .api(`/sites/${this.siteId}/lists/${this.accessiListId}/items`)
-        .expand("fields($select=Title,field_1,field_2,field_3,field_4,field_5,field_6,field_7,field_8,field_9)")
+        .expand("fields($select=Title,field_1,field_2,field_3,field_4,field_5,field_6,field_7,field_8,field_9,ReferenteAppuntamento)")
         .top(top)
         .orderby(orderBy)
         .header("Prefer", "HonorNonIndexedQueriesWarningMayFailRandomly");
@@ -134,7 +149,7 @@ export class AccessiService {
       const filter = `fields/field_1 eq '${AccessiService.escapeODataString(visitatoreId)}'`;
       const response = await this.graphClient
         .api(`/sites/${this.siteId}/lists/${this.accessiListId}/items`)
-        .expand("fields($select=Title,field_1,field_2,field_3,field_4,field_5,field_6,field_7,field_8,field_9)")
+        .expand("fields($select=Title,field_1,field_2,field_3,field_4,field_5,field_6,field_7,field_8,field_9,ReferenteAppuntamento)")
         .filter(filter)
         .orderby("fields/field_4 desc")
         .top(1)
@@ -166,6 +181,7 @@ export class AccessiService {
       Note: f.field_7 ?? f.Note,
       Categoria: f.field_8 ?? f.Categoria,
       PercorsoDestinazione: f.field_9 ?? f.PercorsoDestinazione,
+      ReferenteAppuntamento: f.ReferenteAppuntamento,
     };
 
     return {
@@ -259,6 +275,7 @@ export class AccessiService {
               timestampIngresso: ultimoAccesso.Timestamp,
               puntoAccesso: ultimoAccesso.PuntoAccesso,
               PercorsoDestinazione: ultimoAccesso.PercorsoDestinazione,
+              ReferenteAppuntamento: ultimoAccesso.ReferenteAppuntamento,
             });
           }
         }

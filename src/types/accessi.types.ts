@@ -13,6 +13,7 @@ export interface Accesso {
   Note?: string;
   Categoria?: string;
   PercorsoDestinazione?: string; // Campo choice su SharePoint (es. Direzione, Tecnico, ...)
+  ReferenteAppuntamento?: string; // Nuovo campo per il referente (nome utente tenant)
 }
 
 /**
@@ -26,4 +27,5 @@ export interface VisitorePresente {
   timestampIngresso: string;
   puntoAccesso: string;
   PercorsoDestinazione?: string;
+  ReferenteAppuntamento?: string;
 }

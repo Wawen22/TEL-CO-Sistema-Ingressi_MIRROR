@@ -42,7 +42,7 @@ export const msalConfig: Configuration = {
  * Scopes richiesti per il login
  */
 export const loginRequest: PopupRequest = {
-  scopes: ["User.Read", "Sites.ReadWrite.All"],
+  scopes: ["User.Read", "User.ReadBasic.All", "Sites.ReadWrite.All"],
 };
 
 /**

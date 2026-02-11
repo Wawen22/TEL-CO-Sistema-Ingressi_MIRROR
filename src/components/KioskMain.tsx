@@ -4,6 +4,7 @@ import { InteractionRequiredAuthError } from "@azure/msal-browser";
 import { loginRequest } from "../config/authConfig";
 import { AccessiService } from "../services/accessiService";
 import { SharePointService } from "../services/sharepointService";
+import { GraphService } from "../services/graphService";
 import { useTranslation } from "react-i18next";
 import QrScanner from "qr-scanner";
 import qrScannerWorkerUrl from "qr-scanner/qr-scanner-worker.min.js?url";
@@ -128,6 +129,11 @@ export const KioskMain: React.FC<KioskMainProps> = ({ onAdminAccess, canAccessAd
   const [showTutorialModal, setShowTutorialModal] = useState(false);
   const [pendingTutorial, setPendingTutorial] = useState<{ accessoId: string; visitatore: VisitatoreItem } | null>(null);
   const [tutorialLoading, setTutorialLoading] = useState(false);
+
+  // User Search State
+  const [userSearchQuery, setUserSearchQuery] = useState("");
+  const [searchedUsers, setSearchedUsers] = useState<any[]>([]);
+  const [searchLoading, setSearchLoading] = useState(false);
 
   const videoRef = useRef<HTMLVideoElement | null>(null);
   const scannerRef = useRef<QrScanner | null>(null);
@@ -408,6 +414,8 @@ export const KioskMain: React.FC<KioskMainProps> = ({ onAdminAccess, canAccessAd
     setShowDestinationModal(false);
     setPendingDestination(null);
     setDestinationLoading(false);
+    setUserSearchQuery("");
+    setSearchedUsers([]);
   }, []);
 
   const openTutorialModal = useCallback((accessoId: string, visitatore: VisitatoreItem) => {
@@ -460,8 +468,31 @@ export const KioskMain: React.FC<KioskMainProps> = ({ onAdminAccess, canAccessAd
     }
   }, [accounts, closeTutorialModal, instance, openDestinationModal, pendingTutorial, showStatus]);
 
+  const handleUserSearch = useCallback(async (query: string) => {
+    setUserSearchQuery(query);
+    if (query.length < 2) {
+      setSearchedUsers([]);
+      return;
+    }
+
+    setSearchLoading(true);
+    try {
+      const response = await instance.acquireTokenSilent({
+        ...loginRequest,
+        account: accounts[0],
+      });
+      const graphService = new GraphService(response.accessToken);
+      const users = await graphService.searchUsers(query);
+      setSearchedUsers(users);
+    } catch (error) {
+      console.error("Errore ricerca utenti:", error);
+    } finally {
+      setSearchLoading(false);
+    }
+  }, [accounts, instance]);
+
   const handleDestinationChoice = useCallback(
-    async (destinazione: string) => {
+    async (referente: any) => {
       if (!pendingDestination || !accounts.length) {
         showStatus("error", t("status.sessionNotAuth"));
         return;
@@ -481,22 +512,25 @@ export const KioskMain: React.FC<KioskMainProps> = ({ onAdminAccess, canAccessAd
           import.meta.env.VITE_SHAREPOINT_LIST_ID
         );
 
-        await accessiService.updatePercorsoDestinazione(pendingDestination.accessoId, destinazione);
+        const referenteStr = `${referente.displayName} (${referente.mail || referente.userPrincipalName})`;
+        await accessiService.updateReferente(pendingDestination.accessoId, referenteStr);
 
         const fullName = `${pendingDestination.visitatore?.nome || ""} ${pendingDestination.visitatore?.cognome || ""}`.trim();
-        const message = `Percorso impostato${fullName ? ` per ${fullName}` : ""}: ${destinazione}. Ricorda di effettuare il check-out in uscita!`;
-        showStatus("success", message, 4200, t("status.destinationSaveSuccess"));
+        const message = `Referente impostato${fullName ? ` per ${fullName}` : ""}: ${referente.displayName}. Ricorda di effettuare il check-out in uscita!`;
+        showStatus("success", message, 4200, "Referente salvato");
         closeDestinationModal();
       } catch (error) {
-        console.error("Errore salvataggio percorso:", error);
+        console.error("Errore salvataggio referente:", error);
         showStatus("error", t("status.destinationSaveError"));
       } finally {
         setDestinationLoading(false);
         setViewMode("home");
         setLoading(null);
+        setUserSearchQuery("");
+        setSearchedUsers([]);
       }
     },
-    [accounts, closeDestinationModal, instance, pendingDestination, showStatus]
+    [accounts, closeDestinationModal, instance, pendingDestination, showStatus, t]
   );
 
   const handleScan = useCallback(
@@ -553,11 +587,13 @@ export const KioskMain: React.FC<KioskMainProps> = ({ onAdminAccess, canAccessAd
 
         const accessiService = new AccessiService(accessToken, siteId, accessiListId, visitatoriListId);
         let ultimoPercorso = "";
+        let ultimoReferente = "";
 
         if (scannerAction === "uscita") {
           const ultimoAccesso = await accessiService.getUltimoAccesso(visitatore.idVisitatore);
           const ultimaAzione = ultimoAccesso?.fields?.Azione?.toLowerCase?.();
           ultimoPercorso = ultimoAccesso?.fields?.PercorsoDestinazione || "";
+          ultimoReferente = ultimoAccesso?.fields?.ReferenteAppuntamento || "";
 
           if (!ultimoAccesso || ultimaAzione !== "ingresso") {
             const message = t("status.permissionScanner");
@@ -579,6 +615,7 @@ export const KioskMain: React.FC<KioskMainProps> = ({ onAdminAccess, canAccessAd
           PuntoAccesso: "Kiosk Principale",
           Categoria: visitatore.categoria || "VISITATORE",
           PercorsoDestinazione: scannerAction === "uscita" ? ultimoPercorso : "",
+          ReferenteAppuntamento: scannerAction === "uscita" ? ultimoReferente : "",
         });
 
         const msg =
@@ -775,11 +812,13 @@ export const KioskMain: React.FC<KioskMainProps> = ({ onAdminAccess, canAccessAd
       
       const accessiService = new AccessiService(tokenResponse.accessToken, import.meta.env.VITE_SHAREPOINT_SITE_ID, import.meta.env.VITE_ACCESSI_LIST_ID, import.meta.env.VITE_SHAREPOINT_LIST_ID);
       let ultimoPercorso = "";
+      let ultimoReferente = "";
 
       if (emailAuthAction === "uscita") {
         const ultimoAccesso = await accessiService.getUltimoAccesso(visitatore.idVisitatore);
         const ultimaAzione = ultimoAccesso?.fields?.Azione?.toLowerCase?.();
         ultimoPercorso = ultimoAccesso?.fields?.PercorsoDestinazione || "";
+        ultimoReferente = ultimoAccesso?.fields?.ReferenteAppuntamento || "";
 
         if (!ultimoAccesso || ultimaAzione !== "ingresso") {
           throw new Error(t("status.permissionScanner"));
@@ -794,6 +833,7 @@ export const KioskMain: React.FC<KioskMainProps> = ({ onAdminAccess, canAccessAd
         PuntoAccesso: "Kiosk Principale",
         Categoria: visitatore.categoria || "VISITATORE",
         PercorsoDestinazione: emailAuthAction === "uscita" ? ultimoPercorso : "",
+        ReferenteAppuntamento: emailAuthAction === "uscita" ? ultimoReferente : "",
       });
 
       const msg =
@@ -1064,7 +1104,6 @@ export const KioskMain: React.FC<KioskMainProps> = ({ onAdminAccess, canAccessAd
   }) as { title: string; text: string }[];
   const homeGraphicSrc = isEmailAuth ? "/imgs/icons/otp_icon.png" : "/imgs/icons/qr_code_scan_icon.gif";
   const homeGraphicAlt = isEmailAuth ? "Icona OTP" : "Icona animata scansione QR";
-  const destinationOptions = t("destination.options", { returnObjects: true }) as string[];
   const tutorialVideoSrc = "/video/tutorial/Istruzioni_di_sicurezza_visitatori.mp4";
   const emailAuthStepTitle =
     otpChannel === "sms" ? t("emailAuth.emailStepTitleSms") : t("emailAuth.emailStepTitleEmail");
@@ -1419,8 +1458,8 @@ export const KioskMain: React.FC<KioskMainProps> = ({ onAdminAccess, canAccessAd
               </button>
             </div>
 
-            <div style={styles.destinationHeaderText}>{t("destination.title")}</div>
-            <div style={styles.destinationSubtext}>{t("destination.subtitle")}</div>
+            <div style={styles.destinationHeaderText}>Referente appuntamento</div>
+            <div style={styles.destinationSubtext}>Inizia a scrivere il nome del referente per cercarlo nel sistema</div>
 
             <div style={styles.destinationVisitorRow}>
               <div style={styles.destinationAvatar}>
@@ -1431,25 +1470,57 @@ export const KioskMain: React.FC<KioskMainProps> = ({ onAdminAccess, canAccessAd
                   {`${pendingDestination.visitatore?.nome || ""} ${pendingDestination.visitatore?.cognome || ""}`.trim() ||
                     t("destination.visitorFallback")}
                 </div>
-                <div style={styles.destinationHint}>{t("destination.hint")}</div>
+                <div style={styles.destinationHint}>Identità confermata</div>
               </div>
             </div>
 
-            <div style={styles.destinationGrid}>
-              {destinationOptions.map((option) => (
-                <button
-                  key={option}
-                  style={{
-                    ...styles.destinationCard,
-                    ...(destinationLoading ? styles.destinationCardDisabled : {}),
-                  }}
-                  onClick={() => handleDestinationChoice(option)}
-                  disabled={destinationLoading}
-                >
-                  <div style={styles.destinationCardTitle}>{option}</div>
-                  <div style={styles.destinationCardArrow}>⟶</div>
-                </button>
-              ))}
+            <div style={{ marginTop: "2rem" }}>
+              <input
+                style={{
+                  ...styles.formInput,
+                  fontSize: "1.5rem",
+                  padding: "1rem",
+                  height: "auto",
+                  width: "100%",
+                  marginBottom: "1rem",
+                  border: "2px solid #0078d4"
+                }}
+                placeholder="Inizia a scrivere il nome del referente..."
+                value={userSearchQuery}
+                onChange={(e) => handleUserSearch(e.target.value)}
+                autoFocus
+              />
+
+              {searchLoading && <div style={{ textAlign: "center", padding: "1rem" }}>Ricerca in corso...</div>}
+
+              <div style={styles.destinationGrid}>
+                {searchedUsers.map((user) => (
+                  <button
+                    key={user.id}
+                    style={{
+                      ...styles.destinationCard,
+                      ...(destinationLoading ? styles.destinationCardDisabled : {}),
+                      flexDirection: "column",
+                      alignItems: "flex-start",
+                      padding: "1.2rem",
+                      height: "auto",
+                      minHeight: "80px"
+                    }}
+                    onClick={() => handleDestinationChoice(user)}
+                    disabled={destinationLoading}
+                  >
+                    <div style={{ ...styles.destinationCardTitle, fontSize: "1.2rem", marginBottom: "0.2rem" }}>{user.displayName}</div>
+                    <div style={{ fontSize: "0.9rem", color: "#666" }}>{user.mail || user.userPrincipalName}</div>
+                    {user.jobTitle && <div style={{ fontSize: "0.8rem", color: "#888", marginTop: "0.3rem" }}>{user.jobTitle}</div>}
+                  </button>
+                ))}
+              </div>
+              
+              {userSearchQuery.length >= 2 && searchedUsers.length === 0 && !searchLoading && (
+                <div style={{ textAlign: "center", padding: "2rem", color: "#666", backgroundColor: "#f8f9fa", borderRadius: "12px" }}>
+                  Nessun referente trovato con questo nome. Prova con un altro nome.
+                </div>
+              )}
             </div>
           </div>
         </div>

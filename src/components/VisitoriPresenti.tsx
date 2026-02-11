@@ -100,7 +100,8 @@ export const VisitoriPresenti = ({ refreshKey = 0 }: { refreshKey?: number }) =>
       v.nome.toLowerCase().includes(term) ||
       v.cognome.toLowerCase().includes(term) ||
       (v.azienda || "").toLowerCase().includes(term) ||
-      (v.PercorsoDestinazione || "").toLowerCase().includes(term)
+      (v.PercorsoDestinazione || "").toLowerCase().includes(term) ||
+      (v.ReferenteAppuntamento || "").toLowerCase().includes(term)
     );
   });
 
@@ -224,9 +225,9 @@ export const VisitoriPresenti = ({ refreshKey = 0 }: { refreshKey?: number }) =>
                     <div style={styles.rowValue}>{visitatore.puntoAccesso}</div>
                   </div>
                   <div style={styles.cardRow}>
-                    <div style={styles.rowLabel}>Destinazione</div>
+                    <div style={styles.rowLabel}>Referente</div>
                     <div style={{ ...styles.rowValue, ...styles.destValue }}>
-                      {visitatore.PercorsoDestinazione || "—"}
+                      {visitatore.ReferenteAppuntamento || visitatore.PercorsoDestinazione || "—"}
                     </div>
                   </div>
                   <div style={styles.cardRow}>
@@ -248,7 +249,7 @@ export const VisitoriPresenti = ({ refreshKey = 0 }: { refreshKey?: number }) =>
             <div style={{ ...styles.tableRow, ...styles.tableHeader }}>
               <div style={{ ...styles.tableCell, ...styles.colName }}>Nome</div>
               <div style={{ ...styles.tableCell, ...styles.colCompany }}>Azienda</div>
-              <div style={{ ...styles.tableCell, ...styles.colDestination }}>Destinazione</div>
+              <div style={{ ...styles.tableCell, ...styles.colDestination }}>Referente</div>
               <div style={{ ...styles.tableCell, ...styles.colAccessPoint }}>Punto accesso</div>
               <div style={{ ...styles.tableCell, ...styles.colIngress }}>Ingresso</div>
               <div style={{ ...styles.tableCell, ...styles.colDuration }}>Tempo in sede</div>
@@ -273,7 +274,7 @@ export const VisitoriPresenti = ({ refreshKey = 0 }: { refreshKey?: number }) =>
                 </div>
                 <div style={{ ...styles.tableCell, ...styles.colDestination }}>
                   <span style={styles.destBadge}>
-                    {visitatore.PercorsoDestinazione || "—"}
+                    {visitatore.ReferenteAppuntamento || visitatore.PercorsoDestinazione || "—"}
                   </span>
                 </div>
                 <div style={{ ...styles.tableCell, ...styles.colAccessPoint }}>

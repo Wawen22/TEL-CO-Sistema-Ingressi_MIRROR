@@ -231,7 +231,7 @@ export const StoricAccessi = ({ refreshKey = 0 }: { refreshKey?: number }) => {
           : "",
         Azione: accesso.fields?.Azione || "",
         "Punto Accesso": accesso.fields?.PuntoAccesso || "",
-        Destinazione: accesso.fields?.PercorsoDestinazione || "",
+        "Referente/Destinazione": accesso.fields?.ReferenteAppuntamento || accesso.fields?.PercorsoDestinazione || "",
         Categoria: accesso.fields?.Categoria || "",
         Note: accesso.fields?.Note || "",
       }));
@@ -397,7 +397,7 @@ export const StoricAccessi = ({ refreshKey = 0 }: { refreshKey?: number }) => {
                 <th style={styles.th}>Visitatore</th>
                 <th style={styles.th}>Data e Ora</th>
                 <th style={styles.th}>Azione</th>
-                <th style={styles.th}>Destinazione</th>
+                <th style={styles.th}>Referente/Dest.</th>
                 <th style={styles.th}>Punto Accesso</th>
               </tr>
             </thead>
@@ -446,7 +446,7 @@ export const StoricAccessi = ({ refreshKey = 0 }: { refreshKey?: number }) => {
                     </td>
                     <td style={styles.td}>
                       <span style={styles.destBadge}>
-                        {accesso.fields?.PercorsoDestinazione || "—"}
+                        {accesso.fields?.ReferenteAppuntamento || accesso.fields?.PercorsoDestinazione || "—"}
                       </span>
                     </td>
                     <td style={{ ...styles.td, ...styles.puntoAccessoCell }}>
