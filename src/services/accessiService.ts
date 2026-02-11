@@ -48,6 +48,7 @@ export class AccessiService {
         field_8: accesso.Categoria || "VISITATORE",
         field_9: accesso.PercorsoDestinazione || "",
         ReferenteAppuntamento: accesso.ReferenteAppuntamento || "",
+        OtpCode: accesso.OtpCode || "",
       };
 
       const response = await this.graphClient
@@ -94,6 +95,29 @@ export class AccessiService {
   }
 
   /**
+   * Valida l'OTP di un visitatore confrontandolo con quello memorizzato
+   * nel suo ultimo accesso di tipo "Ingresso".
+   * Restituisce l'ultimo accesso se l'OTP è corretto, altrimenti null.
+   */
+  async validateOtpForVisitatore(visitatoreId: string, otpInput: string): Promise<any | null> {
+    try {
+      const ultimoAccesso = await this.getUltimoAccesso(visitatoreId);
+      if (!ultimoAccesso) return null;
+
+      const azione = ultimoAccesso.fields?.Azione?.toLowerCase?.();
+      if (azione !== "ingresso") return null;
+
+      const storedOtp = ultimoAccesso.fields?.OtpCode;
+      if (!storedOtp || storedOtp !== otpInput) return null;
+
+      return ultimoAccesso;
+    } catch (error) {
+      console.error("❌ Errore validazione OTP:", error);
+      return null;
+    }
+  }
+
+  /**
    * Ottiene tutti gli accessi di un visitatore specifico
    */
   async getAccessiByVisitatore(visitatoreId: string) {
@@ -116,7 +140,7 @@ export class AccessiService {
 
       let apiCall = this.graphClient
         .api(`/sites/${this.siteId}/lists/${this.accessiListId}/items`)
-        .expand("fields($select=Title,field_1,field_2,field_3,field_4,field_5,field_6,field_7,field_8,field_9,ReferenteAppuntamento)")
+        .expand("fields($select=Title,field_1,field_2,field_3,field_4,field_5,field_6,field_7,field_8,field_9,ReferenteAppuntamento,OtpCode)")
         .top(top)
         .orderby(orderBy)
         .header("Prefer", "HonorNonIndexedQueriesWarningMayFailRandomly");
@@ -151,7 +175,7 @@ export class AccessiService {
       const filter = `fields/field_1 eq '${AccessiService.escapeODataString(visitatoreId)}'`;
       const response = await this.graphClient
         .api(`/sites/${this.siteId}/lists/${this.accessiListId}/items`)
-        .expand("fields($select=Title,field_1,field_2,field_3,field_4,field_5,field_6,field_7,field_8,field_9,ReferenteAppuntamento)")
+        .expand("fields($select=Title,field_1,field_2,field_3,field_4,field_5,field_6,field_7,field_8,field_9,ReferenteAppuntamento,OtpCode)")
         .filter(filter)
         .orderby("fields/field_4 desc")
         .top(1)
@@ -184,6 +208,7 @@ export class AccessiService {
       Categoria: f.field_8 ?? f.Categoria,
       PercorsoDestinazione: f.field_9 ?? f.PercorsoDestinazione,
       ReferenteAppuntamento: f.ReferenteAppuntamento,
+      OtpCode: f.OtpCode,
     };
 
     return {

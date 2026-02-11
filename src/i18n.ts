@@ -224,6 +224,19 @@ const resources = {
       terms: {
         accept: "Dichiaro di aver letto e di accettare i termini e le condizioni sulla privacy.",
       },
+      exitFlow: {
+        selectVisitorSubtitle: "Seleziona il tuo nome dall'elenco dei visitatori presenti.",
+        otpSubtitle: "Inserisci il codice OTP che hai ricevuto all'ingresso.",
+        searchLabel: "Cerca il tuo nome",
+        searchPlaceholder: "Cerca per nome, cognome o azienda...",
+        noVisitorsPresent: "Nessun visitatore presente al momento.",
+        otpLabel: "Codice OTP ricevuto all'ingresso",
+        otpHint: "Inserisci il codice a 6 cifre che hai ricevuto via email o SMS al momento dell'ingresso.",
+        otpRequired: "Inserisci il codice OTP.",
+        otpInvalid: "Codice OTP non valido. Verifica di aver selezionato il tuo nome e inserito il codice corretto.",
+        selectVisitorFirst: "Seleziona un visitatore dall'elenco.",
+        confirmExit: "Conferma Uscita",
+      },
       language: {
         italian: "Italiano",
         english: "English",
@@ -452,6 +465,19 @@ const resources = {
       },
       terms: {
         accept: "I confirm I have read and accept the privacy terms.",
+      },
+      exitFlow: {
+        selectVisitorSubtitle: "Select your name from the list of visitors currently on site.",
+        otpSubtitle: "Enter the OTP code you received at entry.",
+        searchLabel: "Search your name",
+        searchPlaceholder: "Search by name, surname or company...",
+        noVisitorsPresent: "No visitors currently on site.",
+        otpLabel: "OTP code received at entry",
+        otpHint: "Enter the 6-digit code you received by email or SMS when you checked in.",
+        otpRequired: "Please enter the OTP code.",
+        otpInvalid: "Invalid OTP code. Make sure you selected the right name and entered the correct code.",
+        selectVisitorFirst: "Please select a visitor from the list.",
+        confirmExit: "Confirm Exit",
       },
       language: {
         italian: "Italiano",

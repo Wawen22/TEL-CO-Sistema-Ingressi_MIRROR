@@ -114,6 +114,13 @@ export const KioskMain: React.FC<KioskMainProps> = ({ onAdminAccess, canAccessAd
   const [emailAuthLoading, setEmailAuthLoading] = useState(false);
   const [emailAuthVisitatore, setEmailAuthVisitatore] = useState<VisitatoreItem | null>(null);
 
+  // Exit flow state (select visitor from present list + OTP)
+  const [exitVisitatoriPresenti, setExitVisitatoriPresenti] = useState<import("../types/accessi.types").VisitorePresente[]>([]);
+  const [exitSelectedVisitatore, setExitSelectedVisitatore] = useState<import("../types/accessi.types").VisitorePresente | null>(null);
+  const [exitStep, setExitStep] = useState<"select" | "otp">("select");
+  const [exitSearchTerm, setExitSearchTerm] = useState("");
+  const [exitLoadingPresenti, setExitLoadingPresenti] = useState(false);
+
   const [visitatoriAccessDenied, setVisitatoriAccessDenied] = useState(false);
   const [now, setNow] = useState<Date>(new Date());
   const [viewMode, setViewMode] = useState<"home" | "scan">("home");
@@ -747,14 +754,13 @@ export const KioskMain: React.FC<KioskMainProps> = ({ onAdminAccess, canAccessAd
     }
   }, [scannerState, showScanner, closeScanner]);
 
-  const handleEmailAuthAction = (action: ActionType) => {
+  const handleEmailAuthAction = async (action: ActionType) => {
     if (visitatoriAccessDenied) {
       showStatus("error", "Permessi insufficienti per accedere alla lista visitatori");
       return;
     }
     setEmailAuthAction(action);
     setShowEmailAuth(true);
-    setEmailAuthStep("email");
     setOtpChannel("email");
     setEmailAuthInput("");
     setPhoneAuthInput("");
@@ -763,6 +769,36 @@ export const KioskMain: React.FC<KioskMainProps> = ({ onAdminAccess, canAccessAd
     setGeneratedOtp("");
     setEmailAuthVisitatore(null);
     setLoading(action);
+
+    if (action === "uscita") {
+      // Uscita: mostra l'elenco dei visitatori presenti
+      setExitStep("select");
+      setExitSelectedVisitatore(null);
+      setExitSearchTerm("");
+      setExitLoadingPresenti(true);
+      try {
+        const tokenResponse = await instance.acquireTokenSilent({
+          ...loginRequest,
+          account: accounts[0],
+        });
+        const accessiService = new AccessiService(
+          tokenResponse.accessToken,
+          import.meta.env.VITE_SHAREPOINT_SITE_ID,
+          import.meta.env.VITE_ACCESSI_LIST_ID,
+          import.meta.env.VITE_SHAREPOINT_LIST_ID
+        );
+        const presenti = await accessiService.getVisitoriPresenti();
+        setExitVisitatoriPresenti(presenti);
+      } catch (error) {
+        console.error("Errore caricamento visitatori presenti:", error);
+        setExitVisitatoriPresenti([]);
+      } finally {
+        setExitLoadingPresenti(false);
+      }
+    } else {
+      // Ingresso: mostra il flusso email/sms OTP standard
+      setEmailAuthStep("email");
+    }
   };
 
   const handleSendCode = async () => {
@@ -864,38 +900,22 @@ export const KioskMain: React.FC<KioskMainProps> = ({ onAdminAccess, canAccessAd
       });
       
       const accessiService = new AccessiService(tokenResponse.accessToken, import.meta.env.VITE_SHAREPOINT_SITE_ID, import.meta.env.VITE_ACCESSI_LIST_ID, import.meta.env.VITE_SHAREPOINT_LIST_ID);
-      let ultimoPercorso = "";
-      let ultimoReferente = "";
 
-      if (emailAuthAction === "uscita") {
-        const ultimoAccesso = await accessiService.getUltimoAccesso(visitatore.idVisitatore);
-        const ultimaAzione = ultimoAccesso?.fields?.Azione?.toLowerCase?.();
-        ultimoPercorso = ultimoAccesso?.fields?.PercorsoDestinazione || "";
-        ultimoReferente = ultimoAccesso?.fields?.ReferenteAppuntamento || "";
-
-        if (!ultimoAccesso || ultimaAzione !== "ingresso") {
-          throw new Error(t("status.permissionScanner"));
-        }
-      }
-
+      // Ingresso: crea accesso con OTP memorizzato
       const createdAccesso = await accessiService.createAccesso({
         VisitoreID: visitatore.idVisitatore,
         VisitoreNome: visitatore.nome,
         VisitoreCognome: visitatore.cognome,
-        Azione: emailAuthAction === "ingresso" ? "Ingresso" : "Uscita",
+        Azione: "Ingresso",
         PuntoAccesso: "Kiosk Principale",
         Categoria: visitatore.categoria || "VISITATORE",
-        PercorsoDestinazione: emailAuthAction === "uscita" ? ultimoPercorso : "",
-        ReferenteAppuntamento: emailAuthAction === "uscita" ? ultimoReferente : "",
+        OtpCode: generatedOtp, // Salva l'OTP per la validazione all'uscita
       });
 
-      const msg =
-        emailAuthAction === "uscita"
-          ? `Uscita registrata per ${visitatore.nome || ""} ${visitatore.cognome || ""}`.trim()
-          : `Accesso consentito per ${visitatore.nome || ""} ${visitatore.cognome || ""}`.trim();
-      
-      showStatus("success", msg, 3000, emailAuthAction === "uscita" ? t("status.successDefault") : t("status.successDefault"));
-      if (emailAuthAction === "ingresso" && createdAccesso?.id) {
+      const msg = `Accesso consentito per ${visitatore.nome || ""} ${visitatore.cognome || ""}`.trim();
+      showStatus("success", msg, 3000, t("status.successDefault"));
+
+      if (createdAccesso?.id) {
         if (visitatore.videoTutorialSeen) {
           openDestinationModal(createdAccesso.id, visitatore);
         } else {
@@ -908,6 +928,71 @@ export const KioskMain: React.FC<KioskMainProps> = ({ onAdminAccess, canAccessAd
       setViewMode("home");
     } catch (error: any) {
       console.error("Errore verifica codice:", error);
+      setEmailAuthError(error?.message || t("status.errorDefault"));
+    } finally {
+      setEmailAuthLoading(false);
+    }
+  };
+
+  /**
+   * Handler per la verifica OTP all'uscita.
+   * Valida l'OTP inserito contro quello memorizzato nel record di Ingresso del visitatore selezionato.
+   */
+  const handleExitOtpVerify = async () => {
+    if (!exitSelectedVisitatore) {
+      setEmailAuthError(t("exitFlow.selectVisitorFirst"));
+      return;
+    }
+    if (!otpInput.trim()) {
+      setEmailAuthError(t("exitFlow.otpRequired"));
+      return;
+    }
+
+    setEmailAuthLoading(true);
+    setEmailAuthError("");
+    try {
+      const tokenResponse = await instance.acquireTokenSilent({
+        ...loginRequest,
+        account: accounts[0],
+      });
+
+      const accessiService = new AccessiService(
+        tokenResponse.accessToken,
+        import.meta.env.VITE_SHAREPOINT_SITE_ID,
+        import.meta.env.VITE_ACCESSI_LIST_ID,
+        import.meta.env.VITE_SHAREPOINT_LIST_ID
+      );
+
+      const validAccesso = await accessiService.validateOtpForVisitatore(
+        exitSelectedVisitatore.visitatoreId,
+        otpInput.trim()
+      );
+
+      if (!validAccesso) {
+        setEmailAuthError(t("exitFlow.otpInvalid"));
+        return;
+      }
+
+      const ultimoPercorso = validAccesso.fields?.PercorsoDestinazione || "";
+      const ultimoReferente = validAccesso.fields?.ReferenteAppuntamento || "";
+
+      await accessiService.createAccesso({
+        VisitoreID: exitSelectedVisitatore.visitatoreId,
+        VisitoreNome: exitSelectedVisitatore.nome,
+        VisitoreCognome: exitSelectedVisitatore.cognome,
+        Azione: "Uscita",
+        PuntoAccesso: "Kiosk Principale",
+        PercorsoDestinazione: ultimoPercorso,
+        ReferenteAppuntamento: ultimoReferente,
+      });
+
+      const msg = `Uscita registrata per ${exitSelectedVisitatore.nome || ""} ${exitSelectedVisitatore.cognome || ""}`.trim();
+      showStatus("success", msg, 3000, t("status.successDefault"));
+      setShowEmailAuth(false);
+      setLoading(null);
+      setViewMode("home");
+    } catch (error: any) {
+      console.error("Errore verifica OTP uscita:", error);
       setEmailAuthError(error?.message || t("status.errorDefault"));
     } finally {
       setEmailAuthLoading(false);
@@ -1696,12 +1781,197 @@ export const KioskMain: React.FC<KioskMainProps> = ({ onAdminAccess, canAccessAd
                 {emailAuthAction === "uscita" ? t("emailAuth.uscita") : t("emailAuth.ingresso")}
               </div>
               <div style={styles.heroSubtitle}>
-                {emailAuthStep === "email" ? emailAuthStepTitle : otpStepTitle}
+                {emailAuthAction === "uscita"
+                  ? (exitStep === "select" ? t("exitFlow.selectVisitorSubtitle") : t("exitFlow.otpSubtitle"))
+                  : (emailAuthStep === "email" ? emailAuthStepTitle : otpStepTitle)}
               </div>
             </div>
 
             <div style={styles.onboardingBody}>
-                {emailAuthStep === "email" ? (
+              {emailAuthAction === "uscita" ? (
+                /* ===== FLUSSO USCITA: Seleziona visitatore → Inserisci OTP ===== */
+                exitStep === "select" ? (
+                  <div style={{ display: "flex", flexDirection: "column", gap: "0.8rem" }}>
+                    <input
+                      style={{
+                        ...styles.formInput,
+                        fontSize: "1.5rem",
+                        padding: "1rem",
+                        height: "auto",
+                        width: "100%",
+                        border: "2px solid #0078d4",
+                      }}
+                      value={exitSearchTerm}
+                      onChange={(e) => setExitSearchTerm(e.target.value)}
+                      placeholder={t("exitFlow.searchPlaceholder")}
+                      autoFocus
+                    />
+
+                    {exitLoadingPresenti ? (
+                      <div style={{ textAlign: "center", padding: "2rem", color: "#4a6280" }}>
+                        {t("onboarding.loadingGeneric")}
+                      </div>
+                    ) : (() => {
+                        const filtered = exitVisitatoriPresenti.filter((v) => {
+                          if (!exitSearchTerm.trim()) return true;
+                          const term = exitSearchTerm.toLowerCase();
+                          return (
+                            v.nome.toLowerCase().includes(term) ||
+                            v.cognome.toLowerCase().includes(term) ||
+                            (v.azienda || "").toLowerCase().includes(term)
+                          );
+                        });
+                        if (filtered.length === 0) {
+                          return (
+                            <div style={{ textAlign: "center", padding: "2rem", color: "#4a6280", backgroundColor: "#f7fbff", borderRadius: "14px", border: "1px solid #e5edf7" }}>
+                              {t("exitFlow.noVisitorsPresent")}
+                            </div>
+                          );
+                        }
+                        return (
+                          <div style={{ display: "flex", flexDirection: "column", gap: "1.05rem", maxHeight: "400px", overflowY: "auto" }}>
+                            {filtered.map((v) => {
+                              const initials = `${v.nome.charAt(0)}${v.cognome.charAt(0)}`.toUpperCase();
+                              return (
+                                <button
+                                  key={v.visitatoreId}
+                                  type="button"
+                                  onClick={() => {
+                                    setExitSelectedVisitatore(v);
+                                    setExitStep("otp");
+                                    setOtpInput("");
+                                    setEmailAuthError("");
+                                  }}
+                                  style={{
+                                    ...styles.destinationCard,
+                                    flexDirection: "row",
+                                    alignItems: "center",
+                                    padding: "1rem",
+                                    height: "auto",
+                                    minHeight: "80px",
+                                    textAlign: "left" as const,
+                                    gap: "1.2rem",
+                                    width: "100%",
+                                  }}
+                                  onMouseEnter={(e) => {
+                                    e.currentTarget.style.transform = "translateY(-2px)";
+                                    e.currentTarget.style.boxShadow = "0 16px 32px rgba(16,42,67,0.14)";
+                                    e.currentTarget.style.borderColor = "#0078d4";
+                                  }}
+                                  onMouseLeave={(e) => {
+                                    e.currentTarget.style.transform = "none";
+                                    e.currentTarget.style.boxShadow = "0 12px 24px rgba(16,42,67,0.08)";
+                                    e.currentTarget.style.borderColor = "#e0e9f7";
+                                  }}
+                                >
+                                  <div
+                                    style={{
+                                      width: "56px",
+                                      height: "56px",
+                                      borderRadius: "50%",
+                                      background: "linear-gradient(135deg, #0f5dbb 0%, #0a3f7a 100%)",
+                                      color: "white",
+                                      display: "flex",
+                                      alignItems: "center",
+                                      justifyContent: "center",
+                                      fontSize: "1.2rem",
+                                      fontWeight: "bold",
+                                      flexShrink: 0,
+                                    }}
+                                  >
+                                    {initials}
+                                  </div>
+                                  <div style={{ flex: 1, minWidth: 0 }}>
+                                    <div style={{ ...styles.destinationCardTitle, fontSize: "1.2rem", marginBottom: "0.1rem", whiteSpace: "nowrap", overflow: "hidden", textOverflow: "ellipsis" }}>
+                                      {v.nome} {v.cognome}
+                                    </div>
+                                    <div style={{ fontSize: "0.9rem", color: "#4a6280", whiteSpace: "nowrap", overflow: "hidden", textOverflow: "ellipsis" }}>
+                                      {v.azienda || "—"}
+                                    </div>
+                                  </div>
+                                  <div style={{ ...styles.destinationCardArrow, marginLeft: "auto" }}>⟶</div>
+                                </button>
+                              );
+                            })}
+                          </div>
+                        );
+                      })()
+                    }
+                    {emailAuthError && <div style={styles.errorText}>{emailAuthError}</div>}
+                  </div>
+                ) : (
+                  /* Step 2 Uscita: Inserisci OTP */
+                  <div style={styles.formGrid}>
+                    <div style={{
+                      display: "flex", alignItems: "center", gap: "12px",
+                      padding: "14px 16px", borderRadius: "12px",
+                      background: "#f0f4ff", border: "1px solid #c7d2fe", marginBottom: "4px",
+                    }}>
+                      <div style={{
+                        width: "42px", height: "42px", borderRadius: "10px",
+                        background: "linear-gradient(135deg, #2563eb, #38bdf8)",
+                        color: "#fff", display: "flex", alignItems: "center", justifyContent: "center",
+                        fontSize: "0.95rem", fontWeight: 800, flexShrink: 0,
+                      }}>
+                        {exitSelectedVisitatore?.nome.charAt(0)}{exitSelectedVisitatore?.cognome.charAt(0)}
+                      </div>
+                      <div style={{ flex: 1, minWidth: 0 }}>
+                        <div style={{ fontWeight: 700, color: "#0f172a", fontSize: "1rem" }}>
+                          {exitSelectedVisitatore?.nome} {exitSelectedVisitatore?.cognome}
+                        </div>
+                        <div style={{ fontSize: "0.85rem", color: "#64748b" }}>
+                          {exitSelectedVisitatore?.azienda || "—"}
+                        </div>
+                      </div>
+                    </div>
+                    <div style={styles.formField}>
+                      <label style={styles.formLabel}>{t("exitFlow.otpLabel")}</label>
+                      <input
+                        style={{
+                          ...styles.formInput,
+                          textAlign: "center",
+                          letterSpacing: "0.5rem",
+                          fontSize: "1.2rem",
+                        }}
+                        value={otpInput}
+                        onChange={(e) => setOtpInput(e.target.value)}
+                        placeholder={t("emailAuth.otpPlaceholder")}
+                        maxLength={6}
+                        inputMode="numeric"
+                      />
+                      <div style={styles.formHint}>{t("exitFlow.otpHint")}</div>
+                      {emailAuthError && <div style={styles.errorText}>{emailAuthError}</div>}
+                      <div style={{ display: "flex", flexDirection: "column", gap: "0.5rem", marginTop: "1rem" }}>
+                        <button
+                          style={styles.primaryButton}
+                          onClick={handleExitOtpVerify}
+                          disabled={emailAuthLoading}
+                        >
+                          {emailAuthLoading ? t("onboarding.loadingGeneric") : t("exitFlow.confirmExit")}
+                        </button>
+                        <button
+                          style={{
+                            ...styles.secondaryButton,
+                            border: "none",
+                            background: "transparent",
+                            color: "#555",
+                          }}
+                          onClick={() => {
+                            setExitStep("select");
+                            setExitSelectedVisitatore(null);
+                            setOtpInput("");
+                            setEmailAuthError("");
+                          }}
+                        >
+                          {t("emailAuth.back")}
+                        </button>
+                      </div>
+                    </div>
+                  </div>
+                )
+              ) : (
+                /* ===== FLUSSO INGRESSO: Email/SMS → OTP (invariato) ===== */
+                emailAuthStep === "email" ? (
                   <div style={styles.formGrid}>
                     <div style={styles.formField}>
                     <label style={styles.formLabel}>
@@ -1791,6 +2061,7 @@ export const KioskMain: React.FC<KioskMainProps> = ({ onAdminAccess, canAccessAd
                     </div>
                   </div>
                 </div>
+              )
               )}
             </div>
 

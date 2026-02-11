@@ -14,6 +14,7 @@ export interface Accesso {
   Categoria?: string;
   PercorsoDestinazione?: string; // Campo choice su SharePoint (es. Direzione, Tecnico, ...)
   ReferenteAppuntamento?: string; // Referente appuntamento (campo testo: "DisplayName <email>")
+  OtpCode?: string; // OTP generato per l'ingresso, valido fino all'uscita
 }
 
 /**
