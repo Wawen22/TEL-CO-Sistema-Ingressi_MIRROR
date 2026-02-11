@@ -383,6 +383,32 @@ export const KioskMain: React.FC<KioskMainProps> = ({ onAdminAccess, canAccessAd
     }
   }, [t, showStatus]);
 
+  const sendTeamsNotification = useCallback(async (payload: {
+    visitorName: string;
+    visitorSurname: string;
+    visitorCompany: string;
+    referenteEmail: string;
+    referenteName: string;
+    timestamp: string;
+  }) => {
+    const flowUrl = import.meta.env.VITE_PA_TEAMS_NOTIFICATION_URL;
+    if (!flowUrl) {
+      console.warn("⚠️ VITE_PA_TEAMS_NOTIFICATION_URL non configurato");
+      return;
+    }
+
+    try {
+      await fetch(flowUrl, {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify(payload),
+      });
+      console.info("✅ Teams notification trigger sent");
+    } catch (err) {
+      console.error("❌ Teams notification call error", err);
+    }
+  }, []);
+
   const closeScanner = useCallback(() => {
     stopScanner();
     setShowScanner(false);
@@ -531,6 +557,16 @@ export const KioskMain: React.FC<KioskMainProps> = ({ onAdminAccess, canAccessAd
         const referenteEmail = referente.mail || referente.userPrincipalName;
         const referenteDisplayName = referente.displayName;
         await accessiService.updateReferente(pendingDestination.accessoId, referenteDisplayName, referenteEmail);
+
+        // Invia notifica Teams al referente
+        await sendTeamsNotification({
+          visitorName: pendingDestination.visitatore?.nome || "Visitatore",
+          visitorSurname: pendingDestination.visitatore?.cognome || "",
+          visitorCompany: pendingDestination.visitatore?.azienda || "N/A",
+          referenteEmail: referenteEmail,
+          referenteName: referenteDisplayName,
+          timestamp: new Date().toISOString()
+        });
 
         const fullName = `${pendingDestination.visitatore?.nome || ""} ${pendingDestination.visitatore?.cognome || ""}`.trim();
         const message = `Referente impostato${fullName ? ` per ${fullName}` : ""}: ${referente.displayName}. Ricorda di effettuare il check-out in uscita!`;
