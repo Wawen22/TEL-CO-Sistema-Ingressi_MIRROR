@@ -36,25 +36,23 @@ export class AccessiService {
    */
   async createAccesso(accesso: Accesso) {
     try {
-      const item = {
-        fields: {
-          Title: `ACC-${Date.now()}`, // ID Accesso univoco
-          field_1: accesso.VisitoreID || "", // Campo testo con IDVisitatore
-          field_2: accesso.VisitoreNome || "",
-          field_3: accesso.VisitoreCognome || "",
-          field_4: accesso.Timestamp || new Date().toISOString(),
-          field_5: accesso.Azione || "Ingresso",
-          field_6: accesso.PuntoAccesso || "Kiosk Principale",
-          field_7: accesso.Note || "",
-          field_8: accesso.Categoria || "VISITATORE",
-          field_9: accesso.PercorsoDestinazione || "",
-          ReferenteAppuntamento: accesso.ReferenteAppuntamento || "",
-        },
+      const fields: Record<string, any> = {
+        Title: `ACC-${Date.now()}`, // ID Accesso univoco
+        field_1: accesso.VisitoreID || "", // Campo testo con IDVisitatore
+        field_2: accesso.VisitoreNome || "",
+        field_3: accesso.VisitoreCognome || "",
+        field_4: accesso.Timestamp || new Date().toISOString(),
+        field_5: accesso.Azione || "Ingresso",
+        field_6: accesso.PuntoAccesso || "Kiosk Principale",
+        field_7: accesso.Note || "",
+        field_8: accesso.Categoria || "VISITATORE",
+        field_9: accesso.PercorsoDestinazione || "",
+        ReferenteAppuntamento: accesso.ReferenteAppuntamento || "",
       };
 
       const response = await this.graphClient
         .api(`/sites/${this.siteId}/lists/${this.accessiListId}/items`)
-        .post(item);
+        .post({ fields });
 
       return response;
     } catch (error) {
@@ -78,16 +76,17 @@ export class AccessiService {
   }
 
   /**
-   * Aggiorna il referente appuntamento su un accesso esistente
+   * Aggiorna il referente appuntamento su un accesso esistente.
+   * Salva il referente come testo semplice (displayName <email>).
+   * NOTA: Il campo ReferenteAppuntamento su SharePoint deve essere di tipo "Riga di testo".
    */
   async updateReferente(accessoId: string, referenteDisplayName: string, referenteEmail: string) {
     try {
+      const referenteValue = `${referenteDisplayName} <${referenteEmail}>`;
       await this.graphClient
         .api(`/sites/${this.siteId}/lists/${this.accessiListId}/items/${accessoId}/fields`)
-        .update({ 
-          ReferenteAppuntamento: referenteEmail, // SharePoint risolve l'utente tramite email
-          field_9: referenteDisplayName // Nome leggibile per la colonna destinazione
-        });
+        .update({ ReferenteAppuntamento: referenteValue });
+      console.log(`✅ ReferenteAppuntamento salvato: ${referenteValue}`);
     } catch (error) {
       console.error("❌ Errore aggiornamento ReferenteAppuntamento:", error);
       throw error;

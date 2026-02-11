@@ -396,7 +396,7 @@ const styles: Record<string, React.CSSProperties> = {
   },
   grid: {
     display: "grid",
-    gridTemplateColumns: "repeat(auto-fill, minmax(320px, 1fr))",
+    gridTemplateColumns: "repeat(auto-fill, minmax(370px, 1fr))",
     gap: "14px",
   },
   tableWrapper: {
@@ -501,6 +501,8 @@ const styles: Record<string, React.CSSProperties> = {
     transition: "transform 0.18s ease, box-shadow 0.18s ease, border-color 0.18s ease",
     willChange: "transform",
     outline: "none",
+    overflow: "hidden",
+    minWidth: 0,
   },
   cardHover: {
     transform: "translateY(-3px)",
@@ -566,6 +568,9 @@ const styles: Record<string, React.CSSProperties> = {
     fontSize: "0.92rem",
     minWidth: "92px",
     textAlign: "center",
+    wordBreak: "break-word" as const,
+    overflowWrap: "anywhere" as const,
+    maxWidth: "100%",
   },
   destValue: {
     fontWeight: 800,
@@ -590,26 +595,30 @@ const styles: Record<string, React.CSSProperties> = {
   },
   cardRow: {
     display: "flex",
-    alignItems: "center",
+    alignItems: "flex-start",
     justifyContent: "space-between",
     gap: "12px",
     padding: "8px 10px",
     borderRadius: "10px",
     background: "#f8fafc",
     border: "1px dashed #e2e8f0",
+    minWidth: 0,
   },
   rowLabel: {
     color: "#475569",
     fontWeight: 600,
     fontSize: "0.86rem",
     letterSpacing: "0.01em",
+    flexShrink: 0,
   },
   rowValue: {
     color: "#0f172a",
     fontWeight: 600,
     fontSize: "0.95rem",
     textAlign: "right",
-    whiteSpace: "nowrap",
+    wordBreak: "break-word" as const,
+    overflowWrap: "anywhere" as const,
+    minWidth: 0,
   },
   timeValue: {
     color: "#1d4ed8",

@@ -13,7 +13,7 @@ export interface Accesso {
   Note?: string;
   Categoria?: string;
   PercorsoDestinazione?: string; // Campo choice su SharePoint (es. Direzione, Tecnico, ...)
-  ReferenteAppuntamento?: string; // Nuovo campo per il referente (nome utente tenant)
+  ReferenteAppuntamento?: string; // Referente appuntamento (campo testo: "DisplayName <email>")
 }
 
 /**
