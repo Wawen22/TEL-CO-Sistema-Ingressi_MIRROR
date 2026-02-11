@@ -1,4 +1,4 @@
-import { Client } from "@microsoft/microsoft-graph-client";
+import { Client, ResponseType } from "@microsoft/microsoft-graph-client";
 
 /**
  * Service per le chiamate a Microsoft Graph API
@@ -84,7 +84,7 @@ export class GraphService {
     try {
       const response = await this.graphClient
         .api(`/users/${userId}/photo/$value`)
-        .responseType("blob")
+        .responseType(ResponseType.BLOB)
         .get();
       
       return URL.createObjectURL(response);
