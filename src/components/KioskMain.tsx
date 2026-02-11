@@ -133,6 +133,7 @@ export const KioskMain: React.FC<KioskMainProps> = ({ onAdminAccess, canAccessAd
   // User Search State
   const [userSearchQuery, setUserSearchQuery] = useState("");
   const [searchedUsers, setSearchedUsers] = useState<any[]>([]);
+  const [userPhotos, setUserPhotos] = useState<Record<string, string>>({});
   const [searchLoading, setSearchLoading] = useState(false);
 
   const videoRef = useRef<HTMLVideoElement | null>(null);
@@ -416,7 +417,12 @@ export const KioskMain: React.FC<KioskMainProps> = ({ onAdminAccess, canAccessAd
     setDestinationLoading(false);
     setUserSearchQuery("");
     setSearchedUsers([]);
-  }, []);
+    // Pulisci i blob URL per evitare memory leak
+    Object.values(userPhotos).forEach(url => {
+      if (url.startsWith('blob:')) URL.revokeObjectURL(url);
+    });
+    setUserPhotos({});
+  }, [userPhotos]);
 
   const openTutorialModal = useCallback((accessoId: string, visitatore: VisitatoreItem) => {
     setPendingTutorial({ accessoId, visitatore });
@@ -484,6 +490,16 @@ export const KioskMain: React.FC<KioskMainProps> = ({ onAdminAccess, canAccessAd
       const graphService = new GraphService(response.accessToken);
       const users = await graphService.searchUsers(query);
       setSearchedUsers(users);
+
+      // Tenta di recuperare le foto per i nuovi utenti trovati
+      users.forEach(async (user: any) => {
+        if (!userPhotos[user.id]) {
+          const photoUrl = await graphService.getUserPhoto(user.id);
+          if (photoUrl) {
+            setUserPhotos(prev => ({ ...prev, [user.id]: photoUrl }));
+          }
+        }
+      });
     } catch (error) {
       console.error("Errore ricerca utenti:", error);
     } finally {
@@ -1494,26 +1510,71 @@ export const KioskMain: React.FC<KioskMainProps> = ({ onAdminAccess, canAccessAd
               {searchLoading && <div style={{ textAlign: "center", padding: "1rem" }}>Ricerca in corso...</div>}
 
               <div style={styles.destinationGrid}>
-                {searchedUsers.map((user) => (
-                  <button
-                    key={user.id}
-                    style={{
-                      ...styles.destinationCard,
-                      ...(destinationLoading ? styles.destinationCardDisabled : {}),
-                      flexDirection: "column",
-                      alignItems: "flex-start",
-                      padding: "1.2rem",
-                      height: "auto",
-                      minHeight: "80px"
-                    }}
-                    onClick={() => handleDestinationChoice(user)}
-                    disabled={destinationLoading}
-                  >
-                    <div style={{ ...styles.destinationCardTitle, fontSize: "1.2rem", marginBottom: "0.2rem" }}>{user.displayName}</div>
-                    <div style={{ fontSize: "0.9rem", color: "#666" }}>{user.mail || user.userPrincipalName}</div>
-                    {user.jobTitle && <div style={{ fontSize: "0.8rem", color: "#888", marginTop: "0.3rem" }}>{user.jobTitle}</div>}
-                  </button>
-                ))}
+                {searchedUsers.map((user) => {
+                  const photoUrl = userPhotos[user.id];
+                  const initials = user.displayName
+                    .split(" ")
+                    .map((n: string) => n[0])
+                    .join("")
+                    .toUpperCase()
+                    .substring(0, 2);
+
+                  return (
+                    <button
+                      key={user.id}
+                      style={{
+                        ...styles.destinationCard,
+                        ...(destinationLoading ? styles.destinationCardDisabled : {}),
+                        flexDirection: "row",
+                        alignItems: "center",
+                        padding: "1rem",
+                        height: "auto",
+                        minHeight: "90px",
+                        textAlign: "left",
+                        gap: "1.2rem"
+                      }}
+                      onClick={() => handleDestinationChoice(user)}
+                      disabled={destinationLoading}
+                    >
+                      <div
+                        style={{
+                          width: "56px",
+                          height: "56px",
+                          borderRadius: "50%",
+                          backgroundColor: "#0078d4",
+                          color: "white",
+                          display: "flex",
+                          alignItems: "center",
+                          justifyContent: "center",
+                          fontSize: "1.2rem",
+                          fontWeight: "bold",
+                          flexShrink: 0,
+                          overflow: "hidden"
+                        }}
+                      >
+                        {photoUrl ? (
+                          <img src={photoUrl} alt={user.displayName} style={{ width: "100%", height: "100%", objectFit: "cover" }} />
+                        ) : (
+                          initials
+                        )}
+                      </div>
+                      <div style={{ flex: 1, minWidth: 0 }}>
+                        <div style={{ ...styles.destinationCardTitle, fontSize: "1.2rem", marginBottom: "0.1rem", whiteSpace: "nowrap", overflow: "hidden", textOverflow: "ellipsis" }}>
+                          {user.displayName}
+                        </div>
+                        <div style={{ fontSize: "0.9rem", color: "#666", whiteSpace: "nowrap", overflow: "hidden", textOverflow: "ellipsis" }}>
+                          {user.mail || user.userPrincipalName}
+                        </div>
+                        {user.jobTitle && (
+                          <div style={{ fontSize: "0.8rem", color: "#888", marginTop: "0.2rem", whiteSpace: "nowrap", overflow: "hidden", textOverflow: "ellipsis" }}>
+                            {user.jobTitle}
+                          </div>
+                        )}
+                      </div>
+                      <div style={{ ...styles.destinationCardArrow, marginLeft: "auto" }}>⟶</div>
+                    </button>
+                  );
+                })}
               </div>
               
               {userSearchQuery.length >= 2 && searchedUsers.length === 0 && !searchLoading && (

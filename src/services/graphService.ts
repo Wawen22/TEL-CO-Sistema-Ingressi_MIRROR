@@ -76,4 +76,21 @@ export class GraphService {
       return [];
     }
   }
+
+  /**
+   * Ottiene la foto profilo di un utente
+   */
+  async getUserPhoto(userId: string): Promise<string | null> {
+    try {
+      const response = await this.graphClient
+        .api(`/users/${userId}/photo/$value`)
+        .responseType("blob")
+        .get();
+      
+      return URL.createObjectURL(response);
+    } catch (error) {
+      // Errore comune: l'utente non ha una foto (404)
+      return null;
+    }
+  }
 }
