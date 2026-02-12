@@ -1,6 +1,6 @@
 import React, { useCallback, useEffect, useRef, useState } from "react";
 import { useMsal } from "@azure/msal-react";
-import { InteractionRequiredAuthError } from "@azure/msal-browser";
+import { InteractionRequiredAuthError, BrowserAuthError } from "@azure/msal-browser";
 import { loginRequest } from "../config/authConfig";
 import { AccessiService } from "../services/accessiService";
 import { SharePointService } from "../services/sharepointService";
@@ -267,9 +267,13 @@ export const KioskMain: React.FC<KioskMainProps> = ({ onAdminAccess, canAccessAd
         showStatus("error", t("status.permissionReadVisitors"));
         return;
       }
-      if (error instanceof InteractionRequiredAuthError) {
+      if (error instanceof InteractionRequiredAuthError ||
+          (error instanceof BrowserAuthError && (error as any).errorCode === "monitor_window_timeout")) {
         try {
-          await instance.acquireTokenRedirect(loginRequest);
+          await instance.loginRedirect({
+            ...loginRequest,
+            prompt: "none", // Usa sessione Azure esistente, nessuna UI
+          });
           return;
         } catch (redirectError) {
           console.error("Errore redirect autenticazione:", redirectError);

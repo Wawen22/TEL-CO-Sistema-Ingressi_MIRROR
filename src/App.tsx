@@ -6,6 +6,7 @@ import Login from "./components/Login";
 import { KioskMain } from "./components/KioskMain";
 import { AdminModal } from "./components/AdminModal";
 import { SettingsService } from "./services/settingsService";
+import { useTokenRenewal } from "./hooks/useTokenRenewal";
 import "./App.css";
 
 // Inizializza MSAL
@@ -36,6 +37,10 @@ function AppContent() {
   const { accounts, instance } = useMsal();
   const [showAdminModal, setShowAdminModal] = useState(false);
   const [, setLoadingSettings] = useState(false);
+
+  // Rinnovo proattivo del token ogni 30 minuti + recupero automatico
+  // Mantiene il token sempre valido anche durante inattività notturna
+  useTokenRenewal();
   
   // Gestione modalità di autenticazione (QR o Email)
   const [authMode, setAuthMode] = useState<"QR" | "EMAIL">("QR");

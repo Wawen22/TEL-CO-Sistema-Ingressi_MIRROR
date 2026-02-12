@@ -8,12 +8,16 @@ export const msalConfig: Configuration = {
     clientId: import.meta.env.VITE_CLIENT_ID,
     authority: `https://login.microsoftonline.com/${import.meta.env.VITE_TENANT_ID}`,
     redirectUri: import.meta.env.VITE_REDIRECT_URI,
+    navigateToLoginRequestUrl: true, // Torna all'URL originale dopo loginRedirect
   },
   cache: {
     cacheLocation: "localStorage", // persiste tra riavvii del browser
     storeAuthStateInCookie: false,
   },
   system: {
+    // Rinnova il token 5 minuti prima della scadenza effettiva
+    // per evitare finestre in cui il token risulti scaduto
+    tokenRenewalOffsetSeconds: 300,
     loggerOptions: {
       loggerCallback: (level, message, containsPii) => {
         if (containsPii) {
